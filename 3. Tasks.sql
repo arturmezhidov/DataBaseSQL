@@ -59,7 +59,7 @@ USE Company;
 	DECLARE @Month TINYINT = 5;
 	DECLARE @Year SMALLINT = 2015;
 
-	SELECT *
+	SELECT sal.IdEmployee
 	FROM dbo.Salary AS sal
 	WHERE sal.[Month] = @Month AND 
 		  sal.[Year] = @Year AND
@@ -147,4 +147,4 @@ USE Company;
 	DECLARE @OlderYear SMALLINT = 2015
 
 	DELETE dbo.Salary
-	WHERE dbo.Salary.[Year] > @OlderYear;
+	WHERE dbo.Salary.[Year] < @OlderYear;
