@@ -6,7 +6,7 @@ USE Company;
 	GO
 
 	SELECT *
-	FROM dbo.Employee
+	FROM dbo.Employees
 
 --b.	Получить коды и названия должностей, чья минимальная заработная плата не превышает 500;
 
@@ -14,9 +14,9 @@ USE Company;
 	
 	DECLARE @Salary INT = 500;
 
-	SELECT j.Id, j.Post
-	FROM dbo.Job AS j
-	WHERE j.Salary < @salary
+	SELECT job.Id, job.Name
+	FROM dbo.Jobs AS job
+	WHERE job.Salary < @salary
 
 --c.	Получить среднюю заработную плату начисленную в январе 2015 года.
 
@@ -25,19 +25,19 @@ USE Company;
 	DECLARE @Month TINYINT = 1;
 	DECLARE @Year SMALLINT = 2015;
 
-	SELECT AVG(s.SalaryAmount) AS [Average salary]
-	FROM dbo.Salary AS s
-	WHERE s.[Month] = @Month AND s.[Year] = @Year;
+	SELECT AVG(salary.SalaryAmount) AS [Average salary]
+	FROM dbo.Salaries AS salary
+	WHERE salary.[Month] = @Month AND salary.[Year] = @Year;
 
 --2.	Вложенные подзапросы:
 --a.	Получить имя самого немолодого сотрудника, а также его дату рождения;
 	
 	GO
 
-	SELECT emp.Name, emp.Birthday
-	FROM dbo.Employee AS emp
-	WHERE emp.Birthday = (SELECT MIN(e.Birthday)
-						  FROM dbo.Employee AS e);
+	SELECT employee.FirstName, employee.Birthday
+	FROM dbo.Employees AS employee
+	WHERE employee.Birthday = (SELECT MIN(emp.Birthday)
+								FROM dbo.Employees AS emp);
 
 --b.	Найти фамилии работников, которым была начислена заработная плата в январе 2015 года;
 
@@ -46,11 +46,11 @@ USE Company;
 	DECLARE @Month TINYINT = 1;
 	DECLARE @Year SMALLINT = 2015;
 
-	SELECT emp.Surname
-	FROM dbo.Employee AS emp
-	WHERE emp.Id IN (SELECT s.IdEmployee
-					FROM dbo.Salary AS s
-					WHERE s.[Month] = @Month AND s.[Year] = @Year);
+	SELECT employee.LastName
+	FROM dbo.Employees AS employee
+	WHERE employee.Id IN (SELECT salary.EmployeeId
+						  FROM dbo.Salaries AS salary
+						  WHERE salary.[Month] = @Month AND salary.[Year] = @Year);
 
 --c.	Найти коды работников, заработная плата которых в мае 2015 года; снизилась по сравнению с каким-либо предыдущим месяцем этого же года;
 
@@ -59,23 +59,23 @@ USE Company;
 	DECLARE @Month TINYINT = 5;
 	DECLARE @Year SMALLINT = 2015;
 
-	SELECT sal.IdEmployee
-	FROM dbo.Salary AS sal
-	WHERE sal.[Month] = @Month AND 
-		  sal.[Year] = @Year AND
-		  sal.SalaryAmount < (SELECT MAX(s.SalaryAmount)
-							  FROM dbo.Salary AS s
-							  WHERE s.IdEmployee = sal.IdEmployee AND
-									s.[Month] < @Month AND 
-									s.[Year] = @Year);
+	SELECT sallary.EmployeeId
+	FROM dbo.Salaries AS sallary
+	WHERE sallary.[Month] = @Month AND 
+		  sallary.[Year] = @Year AND
+		  sallary.SalaryAmount < (SELECT MAX(sal.SalaryAmount)
+								  FROM dbo.Salaries AS sal
+								  WHERE sal.EmployeeId = sallary.EmployeeId AND
+										sal.[Month] < @Month AND 
+										sal.[Year] = @Year);
 
 --d.	Получить информацию о кодах, названиях отделов и числе работающих в них в настоящее время сотрудников.
 
-	SELECT dep.Id, dep.Name, (SELECT COUNT(*) 
-							  FROM dbo.Career AS c 
-							  WHERE c.IdDepartment = dep.Id) 
-							  AS EmployeeCount
-	FROM dbo.Department AS dep
+	SELECT department.Id, department.Name, (SELECT COUNT(*) 
+											FROM dbo.Careers AS career
+											WHERE career.DepartmentId = department.Id) 
+											AS EmployeeCount
+	FROM dbo.Departments AS department
 
 --3.	Группировка данных:
 --a.	Найти среднюю начисленную заработную плату за 2015 год в разрезе работников;
@@ -84,10 +84,10 @@ USE Company;
 
 	DECLARE @Year SMALLINT = 2015;
 
-	SELECT s.IdEmployee, AVG(s.SalaryAmount) AS [Average salary]
-	FROM dbo.Salary AS s
-	WHERE s.[Year] = @Year
-	GROUP BY s.IdEmployee
+	SELECT salary.EmployeeId, AVG(salary.SalaryAmount) AS [Average salary]
+	FROM dbo.Salaries AS salary
+	WHERE salary.[Year] = @Year
+	GROUP BY salary.EmployeeId
 
 --b.	Найти среднюю заработную плату за 2015 год в разрезе работников. Включать в результат только тех работников, начисления которым проводились не менее двух раз.
 
@@ -96,10 +96,10 @@ USE Company;
 	DECLARE @Year SMALLINT = 2015;
 	DECLARE @Limit TINYINT = 2;
 
-	SELECT s.IdEmployee, AVG(s.SalaryAmount) AS [Average salary]
-	FROM dbo.Salary AS s
-	WHERE s.[Year] = @Year
-	GROUP BY s.IdEmployee
+	SELECT salary.EmployeeId, AVG(salary.SalaryAmount) AS [Average salary]
+	FROM dbo.Salaries AS salary
+	WHERE salary.[Year] = @Year
+	GROUP BY salary.EmployeeId
 	HAVING COUNT(*) >= @Limit
 
 --4.	Соединения таблиц:
@@ -111,24 +111,31 @@ USE Company;
 	DECLARE @Year SMALLINT = 2015;
 	DECLARE @Salary MONEY = 1000;
 
-	SELECT emp.Name
-	FROM dbo.Employee AS emp
-		INNER JOIN dbo.Salary AS sal ON sal.IdEmployee = emp.Id
-	WHERE	sal.[Month] = @Month AND 
-			sal.[Year] = @Year AND 
-			sal.SalaryAmount > @Salary;
+	SELECT employee.FirstName
+	FROM dbo.Employees AS employee
+		INNER JOIN dbo.Salaries AS salary ON salary.EmployeeId = employee.Id
+	WHERE	salary.[Month] = @Month AND 
+			salary.[Year] = @Year AND 
+			salary.SalaryAmount > @Salary;
 
 --b.	Найти имена работников и стаж их непрерывной работы (на одной должности и в одном отделе). 
 
 	GO
 
-	DECLARE @NowYear SMALLINT = YEAR(GETDATE());
-
-	SELECT e.Name, (@NowYear - YEAR(c.EmploymentDate)) AS Experience
-	FROM dbo.Employee AS e
-		INNER JOIN dbo.Career		AS c ON e.Id = c.IdEmployee
-		INNER JOIN dbo.Department	AS d ON d.Id = c.IdDepartment 
-		INNER JOIN dbo.Job			AS j ON j.Id = c.IdJob;
+	SELECT	employee.id, 
+			employee.FirstName, 
+			employee.LastName, 
+			department.Name AS Department, 
+			job.Name AS Job, 
+			(YEAR(ISNULL(career.DismissalDate, GETDATE())) - YEAR(career.EmploymentDate)) AS Experience,
+			career.EmploymentDate,
+			career.DismissalDate
+	
+	FROM dbo.Employees AS employee
+		INNER JOIN dbo.Careers		AS career		ON employee.Id = career.EmployeeId
+		INNER JOIN dbo.Departments	AS department	ON department.Id = career.DepartmentId 
+		INNER JOIN dbo.Jobs			AS job			ON job.Id = career.JobId
+	ORDER BY employee.Id, career.EmploymentDate ASC;
 
 --5.	Модификация данных:
 --a.	Увеличить минимальную заработную плату для всех должностей в 1.5 раза;
@@ -137,7 +144,7 @@ USE Company;
 
 	DECLARE @Coefficients FLOAT = 1.5;
 
-	UPDATE dbo.Job
+	UPDATE dbo.Jobs
 	SET Salary *= @Coefficients;
 
 --b.	Удалить из таблицы salary все записи старше 2015 года.
@@ -146,5 +153,5 @@ USE Company;
 	
 	DECLARE @OlderYear SMALLINT = 2015
 
-	DELETE dbo.Salary
-	WHERE dbo.Salary.[Year] < @OlderYear;
+	DELETE dbo.Salaries
+	WHERE dbo.Salaries.[Year] < @OlderYear;
